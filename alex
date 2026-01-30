@@ -1,178 +1,933 @@
-local Players = game:GetService("Players")
-local UserInputService = game:GetService("UserInputService")
-local TweenService = game:GetService("TweenService")
-local TextService = game:GetService("TextService")
-
-local player = Players.LocalPlayer
+local player = game.Players.LocalPlayer
 local playerGui = player:WaitForChild("PlayerGui")
 
---// PRODUCT LIST
+-- Ürün listesi
 local productList = {
-	"Pls","Gamepass","Donate","Gift","Support",
-	"Apple","Banana","Pizza","Coffee","Donut",
-	"GG","Noob","Pro","Hello","Thanks"
+    -- Mevcutlar
+    "Pls",
+    "icewing", 
+    "brainrot",
+    "harvester",
+    "donate me",
+    "plsdonate",
+    "omg",
+    "Gamepass",
+    "Hello",
+    "robux",
+    "pls me",
+    "trash",
+    "gift",
+    "aaa",
+    "buy my gamepass",
+    "thank you",
+    "thanks",
+    "hmmm",
+    "free",
+    "money pls",
+    "need robux",
+    "support me",
+    "donation",
+    "please",
+    "give me",
+    "charity",
+    "rich",
+    "poor",
+    "help",
+    "gamepass pls",
+    "buy pls",
+    "limited",
+    "exclusive",
+    "special",
+    "rare",
+    "mega",
+    "donate pls",
+    "super",
+    "event",
+    "pass",
+    "give robux",
+    "extra",
+    "vip",
+    "premium",
+    "fund me",
+    "thaanksss",
+    "money",
+    "pls robux",
+
+    -- Yeni eklenenler
+    "apple",
+    "banana",
+    "cookie",
+    "pizza",
+    "water",
+    "juice",
+    "ice cream",
+    "coffee",
+    "sandwich",
+    "donut",
+
+    "yay",
+    "noob",
+    "pro",
+    "gg",
+    "ez",
+    "wow",
+    "idk",
+    "hello there",
+    "good luck",
+    "bruh",
+    "bro",
+    "brooo",
+    "sis",
+    "wait",
+    "fast",
+    "slow",
+    "look",
+    "follow me",
+    "dance",
+    "jump",
+    "stop"
 }
 
-math.randomseed(os.clock())
 
+-- Rastgele ürün seçme fonksiyonu
 local function getRandomProduct()
-	return productList[math.random(#productList)]
+    local randomIndex = math.random(1, #productList)
+    return productList[randomIndex]
 end
 
---// STATE
-local productName = getRandomProduct()
-local robuxAmount = 50
-local username = player.Name
-local balance = 1_000_000
+-- Ayarlar için değişkenler (varsayılan değerler)
+local productName = getRandomProduct() -- Başlangıçta rastgele ürün
+local robuxAmount = "100"
+local username = "xBarqn"
+local currentBalance = 6892741 -- Başlangıç bakiyesi
 
---// FORMATTERS
-local function formatNumber(n)
-	local s = tostring(n)
-	while true do
-		s, k = s:gsub("^(-?%d+)(%d%d%d)", "%1,%2")
-		if k == 0 then break end
-	end
-	return s
+-- String split fonksiyonu ekle
+local function splitString(str, separator)
+    local result = {}
+    local pattern = string.format("([^%s]+)", separator)
+    for match in str:gmatch(pattern) do
+        table.insert(result, match)
+    end
+    return result
 end
 
---// PURCHASE POPUP
+-- Sayıyı binlik ayraçlı formata çevirme fonksiyonu (SADECE GÖRÜNTÜ İÇİN)
+local function formatNumber(num)
+    local formatted = tostring(num)
+    local k
+    while true do
+        formatted, k = string.gsub(formatted, "^(-?%d+)(%d%d%d)", '%1,%2')
+        if k == 0 then break end
+    end
+    return formatted
+end
+
+-- Virgüllü sayıyı normal sayıya çevirme fonksiyonu
+local function parseNumber(str)
+    -- Virgülleri kaldır ve sayıya çevir
+    local cleanedStr = string.gsub(str, ",", "")
+    return tonumber(cleanedStr)
+end
+
+-- Username otomatik alma fonksiyonu (sürekli kontrol)
+local function getUsernameFromGiftFrame()
+    local success, result = pcall(function()
+        -- Belirtilen yolu kontrol et
+        local giftFrame = game:GetService("Players").LocalPlayer.PlayerGui:FindFirstChild("ScreenGui")
+        if giftFrame then
+            giftFrame = giftFrame:FindFirstChild("Gift")
+            if giftFrame then
+                giftFrame = giftFrame:FindFirstChild("Frame")
+                if giftFrame then
+                    local usernameField = giftFrame:FindFirstChild("Username")
+                    if usernameField and usernameField:IsA("TextLabel") then
+                        return usernameField.Text
+                    elseif usernameField and usernameField:IsA("TextBox") then
+                        return usernameField.Text
+                    end
+                end
+            end
+        end
+        return nil
+    end)
+    
+    if success and result then
+        return result
+    end
+    return nil
+end
+
+-- Username otomatik güncelleme sistemi
+local function startUsernameAutoUpdate()
+    spawn(function()
+        while true do
+            wait(1) -- Her saniye kontrol et
+            
+            local newUsername = getUsernameFromGiftFrame()
+            if newUsername and newUsername ~= "" then
+                username = newUsername
+                -- Ayarlar GUI'sini güncelle
+                if settingsGui and settingsGui.Parent then
+                    local userInput = settingsGui:FindFirstChild("SettingsFrame") and settingsGui.SettingsFrame:FindFirstChild("UserInput")
+                    if userInput and userInput:IsA("TextBox") then
+                        userInput.Text = newUsername
+                    end
+                end
+            end
+            -- Eğer username boşsa veya erişilemezse, en son değer korunur (override yapılmaz)
+        end
+    end)
+end
+
+-- Donated değerini güncelleme fonksiyonu
+local function updateDonatedValue(amountToAdd)
+    local customCoreGui = playerGui:FindFirstChild("CustomCoreGui")
+    if customCoreGui then
+        local playerlist = customCoreGui:FindFirstChild("Playerlist")
+        if playerlist then
+            local scrollingFrame = playerlist:FindFirstChild("ScrollingFrame")
+            if scrollingFrame then
+                -- Kullanıcı ID'sini bul (LocalPlayer'in UserId'sini kullan)
+                local userId = tostring(player.UserId)
+                local userFrame = scrollingFrame:FindFirstChild("User" .. userId)
+                if userFrame then
+                    local stats = userFrame:FindFirstChild("Stats")
+                    if stats then
+                        local donated = stats:FindFirstChild("Donated")
+                        if donated then
+                            -- Mevcut donated değerini al ve parse et
+                            local currentDonatedText = donated.Text
+                            -- Özel karakterleri ve virgülleri temizle
+                            local cleanedText = string.gsub(currentDonatedText, "[^%d,]", "")
+                            local currentDonated = parseNumber(cleanedText) or 0
+                            
+                            -- Yeni değeri hesapla
+                            local newDonated = currentDonated + amountToAdd
+                            
+                            -- Eski yapıyı temizle
+                            for _, child in ipairs(donated:GetChildren()) do
+                                child:Destroy()
+                            end
+                            
+                            -- Yeni UI yapısını oluştur
+                            donated.Text = ""
+                            
+                            -- Robux ikonunu ekle (yeşil renk)
+                            local robuxIcon = Instance.new("ImageLabel")
+                            robuxIcon.Size = UDim2.new(0, 16, 0, 16)
+                            robuxIcon.Position = UDim2.new(0, 0, 0.5, -8)
+                            robuxIcon.BackgroundTransparency = 1
+                            robuxIcon.Image = "rbxasset://textures/ui/common/robux@3x.png"
+                            robuxIcon.ImageColor3 = Color3.fromRGB(59, 255, 56) -- Yeşil renk
+                            robuxIcon.Parent = donated
+                            
+                            -- Miktar yazısını ekle (semi-bold ve yeşil) - VİRGÜLLÜ GÖSTERİM
+                            local amountText = Instance.new("TextLabel")
+                            amountText.Size = UDim2.new(1, -20, 1, 0)
+                            amountText.Position = UDim2.new(0, 20, 0, 0)
+                            amountText.BackgroundTransparency = 1
+                            amountText.Text = formatNumber(newDonated) -- VİRGÜLLÜ GÖSTERİM
+                            amountText.TextColor3 = Color3.fromRGB(59, 255, 56) -- Yeşil renk
+                            amountText.Font = Enum.Font.GothamSemibold -- Semi-bold font
+                            amountText.TextSize = 14
+                            amountText.TextXAlignment = Enum.TextXAlignment.Left
+                            amountText.Parent = donated
+                        end
+                    end
+                end
+            end
+        end
+    end
+end
+
+-- Satın alma GUI fonksiyonu
 local function createPurchaseGUI()
-	local gui = Instance.new("ScreenGui", playerGui)
-	gui.Name = "PurchaseGUI"
+    -- Her seferinde rastgele ürün seç
+    productName = getRandomProduct()
+    
+    -- Robux miktarını doğru şekilde parse et
+    local parsedRobux = parseNumber(robuxAmount)
+    if not parsedRobux or parsedRobux <= 0 then
+        warn("Geçersiz Robux miktarı: " .. robuxAmount)
+        return
+    end
+    
+    -- Yeni bakiye hesapla
+    local newBalance = currentBalance - parsedRobux
+    
+    local screenGui = Instance.new("ScreenGui")
+    screenGui.Name = "PurchasePopup"
+    screenGui.Parent = playerGui
+    screenGui.ZIndexBehavior = Enum.ZIndexBehavior.Sibling
 
-	local frame = Instance.new("Frame", gui)
-	frame.Size = UDim2.fromOffset(420, 240)
-	frame.Position = UDim2.fromScale(0.5, -1)
-	frame.AnchorPoint = Vector2.new(0.5, 0.5)
-	frame.BackgroundColor3 = Color3.fromRGB(40, 42, 50)
-	frame.BorderSizePixel = 0
-	Instance.new("UICorner", frame).CornerRadius = UDim.new(0, 12)
+    -- Ana çerçeve
+    local mainFrame = Instance.new("Frame")
+    mainFrame.Size = UDim2.new(0, 450, 0, 270)
+    mainFrame.Position = UDim2.new(0.5, -225, -1, 0) -- ÜSTTEN BAŞLAT
+    mainFrame.BackgroundColor3 = Color3.fromRGB(39, 41, 48)
+    mainFrame.BorderSizePixel = 0
+    mainFrame.Parent = screenGui
+    Instance.new("UICorner", mainFrame).CornerRadius = UDim.new(0, 12)
 
-	-- TITLE
-	local title = Instance.new("TextLabel", frame)
-	title.Size = UDim2.new(1, 0, 0, 40)
-	title.Text = "Buy Item"
-	title.Font = Enum.Font.GothamBold
-	title.TextSize = 22
-	title.TextColor3 = Color3.new(1,1,1)
-	title.BackgroundTransparency = 1
+    -- Başlık
+    local title = Instance.new("TextLabel")
+    title.Size = UDim2.new(1, -20, 0, 42)
+    title.Position = UDim2.new(0, 10, 0, 0)
+    title.BackgroundTransparency = 1
+    title.Text = "Öğeyi Satın Al"
+    title.TextColor3 = Color3.new(1, 1, 1)
+    title.Font = Enum.Font.GothamBold
+    title.TextSize = 23
+    title.TextXAlignment = Enum.TextXAlignment.Center
+    title.Parent = mainFrame
 
-	-- PRODUCT
-	local item = Instance.new("TextLabel", frame)
-	item.Position = UDim2.fromOffset(20, 60)
-	item.Size = UDim2.new(1, -40, 40)
-	item.Text = productName
-	item.Font = Enum.Font.GothamBold
-	item.TextSize = 20
-	item.TextColor3 = Color3.fromRGB(220,220,220)
-	item.BackgroundTransparency = 1
-	item.TextXAlignment = Left
+    -- Başlık altı çizgi
+    local topLine = Instance.new("Frame")
+    topLine.Size = UDim2.new(1, -20, 0, 1)
+    topLine.Position = UDim2.new(0, 10, 0, 44)
+    topLine.BackgroundColor3 = Color3.fromRGB(60, 60, 70)
+    topLine.BorderSizePixel = 0
+    topLine.Parent = mainFrame
 
-	-- BUY BUTTON
-	local buy = Instance.new("TextButton", frame)
-	buy.Position = UDim2.new(0.1, 0, 1, -70)
-	buy.Size = UDim2.new(0.8, 0, 0, 45)
-	buy.Text = "Buy for " .. robuxAmount .. " R$"
-	buy.Font = Enum.Font.GothamBold
-	buy.TextSize = 18
-	buy.TextColor3 = Color3.new(1,1,1)
-	buy.BackgroundColor3 = Color3.fromRGB(60, 100, 255)
-	Instance.new("UICorner", buy).CornerRadius = UDim.new(0, 8)
+    -- Kapatma butonu
+    local closeButton = Instance.new("TextButton")
+    closeButton.Size = UDim2.new(0, 40, 0, 40)
+    closeButton.Position = UDim2.new(0, 5, 0, 0)
+    closeButton.BackgroundTransparency = 1
+    closeButton.Text = "X"
+    closeButton.Font = Enum.Font.GothamBold
+    closeButton.TextSize = 26
+    closeButton.TextColor3 = Color3.fromRGB(200, 200, 200)
+    closeButton.Parent = mainFrame
 
-	-- BALANCE INFO
-	local after = Instance.new("TextLabel", frame)
-	after.Position = UDim2.new(0, 0, 1, -30)
-	after.Size = UDim2.new(1, 0, 30, 0)
-	after.Text = "Balance after: " .. formatNumber(balance - robuxAmount)
-	after.Font = Enum.Font.Gotham
-	after.TextSize = 12
-	after.TextColor3 = Color3.fromRGB(170,170,170)
-	after.BackgroundTransparency = 1
+    -- Ürün görselı
+    local productImage = Instance.new("ImageLabel")
+    productImage.Size = UDim2.new(0, 95, 0, 95)
+    productImage.Position = UDim2.new(0, 18, 0, 60)
+    productImage.BackgroundTransparency = 1
+    productImage.Image = "http://www.roblox.com/asset/?id=13600173502"
+    productImage.Parent = mainFrame
 
-	-- ANIMATE IN
-	frame:TweenPosition(
-		UDim2.fromScale(0.5, 0.5),
-		Enum.EasingDirection.Out,
-		Enum.EasingStyle.Quad,
-		0.4,
-		true
-	)
+    -- Ürün adı
+    local productNameLabel = Instance.new("TextLabel")
+    productNameLabel.Size = UDim2.new(1, -135, 0, 32)
+    productNameLabel.Position = UDim2.new(0, 125, 0, 75)
+    productNameLabel.BackgroundTransparency = 1
+    productNameLabel.Text = productName
+    productNameLabel.TextColor3 = Color3.fromRGB(230, 230, 230)
+    productNameLabel.Font = Enum.Font.GothamBold
+    productNameLabel.TextSize = 21
+    productNameLabel.TextXAlignment = Enum.TextXAlignment.Left
+    productNameLabel.Parent = mainFrame
 
-	buy.MouseButton1Click:Connect(function()
-		buy.Active = false
-		balance -= robuxAmount
+    -- Satın alma butonu
+    local buyButton = Instance.new("TextButton")
+    buyButton.Size = UDim2.new(0.88, 0, 0, 45)
+    buyButton.Position = UDim2.new(0.06, 0, 1, -85)
+    buyButton.BackgroundColor3 = Color3.fromRGB(63, 105, 255)
+    buyButton.Text = ""
+    buyButton.Parent = mainFrame
+    Instance.new("UICorner", buyButton).CornerRadius = UDim.new(0, 8)
 
-		frame:TweenPosition(
-			UDim2.fromScale(0.5, -1),
-			Enum.EasingDirection.In,
-			Enum.EasingStyle.Quad,
-			0.4,
-			true,
-			function()
-				gui:Destroy()
-				warn("Donated", robuxAmount, "to", username)
-			end
-		)
-	end)
+    -- Robux ikonu ve miktar - VİRGÜLSÜZ (arkaplan işlemleri için)
+    local icon = Instance.new("ImageLabel")
+    icon.Size = UDim2.new(0, 24, 0, 24)
+    icon.Position = UDim2.new(0.5, -37, 0.5, -12)
+    icon.BackgroundTransparency = 1
+    icon.Image = "rbxasset://textures/ui/common/robux@3x.png"
+    icon.Parent = buyButton
+
+    local amount = Instance.new("TextLabel")
+    amount.Size = UDim2.new(0, 40, 1, 0)
+    amount.Position = UDim2.new(0.5, -10, 0, 0)
+    amount.BackgroundTransparency = 1
+    amount.Text = tostring(parsedRobux) -- VİRGÜLSÜZ (arkaplan işlemleri için)
+    amount.TextColor3 = Color3.new(1, 1, 1)
+    amount.Font = Enum.Font.GothamBold
+    amount.TextSize = 20
+    amount.TextXAlignment = Enum.TextXAlignment.Left
+    amount.Parent = buyButton
+
+    -- Hover efekti
+    buyButton.MouseEnter:Connect(function()
+        if buyButton.Active then
+            buyButton.BackgroundColor3 = Color3.fromRGB(45, 68, 152)
+        end
+    end)
+    buyButton.MouseLeave:Connect(function()
+        if buyButton.Active then
+            buyButton.BackgroundColor3 = Color3.fromRGB(63, 105, 255)
+        else
+            buyButton.BackgroundColor3 = Color3.fromRGB(45, 68, 152)
+        end
+    end)
+
+    -- Alt açıklama container
+    local afterContainer = Instance.new("Frame")
+    afterContainer.Size = UDim2.new(0, 280, 0, 22)
+    afterContainer.Position = UDim2.new(0.5, -140, 1, -33)
+    afterContainer.BackgroundTransparency = 1
+    afterContainer.Parent = mainFrame
+
+    -- Alt yazı - VİRGÜLLÜ GÖSTERİM
+    local fullLabel = Instance.new("TextLabel")
+    fullLabel.Size = UDim2.new(1, 0, 1, 0)
+    fullLabel.BackgroundTransparency = 1
+    fullLabel.Text = "Bu işlemden sonra bakiyen      " .. formatNumber(newBalance) .. " kalacak" -- VİRGÜLLÜ GÖSTERİM
+    fullLabel.TextColor3 = Color3.fromRGB(160, 160, 160)
+    fullLabel.Font = Enum.Font.GothamSemibold
+    fullLabel.TextSize = 12
+    fullLabel.TextXAlignment = Enum.TextXAlignment.Center
+    fullLabel.Parent = afterContainer
+
+    -- Robux ikonu
+    local afterIcon = Instance.new("ImageLabel")
+    afterIcon.Size = UDim2.new(0, 16, 0, 16)
+    afterIcon.Position = UDim2.new(0.5, 20, 0.5, -8)
+    afterIcon.BackgroundTransparency = 1
+    afterIcon.Image = "rbxasset://textures/ui/common/robux@3x.png"
+    afterIcon.Parent = afterContainer
+
+    -- 1.5 saniye bekle ve sonra GUI'yi üstten kaydırarak göster
+    spawn(function()
+        wait(1.5)
+        mainFrame:TweenPosition(
+            UDim2.new(0.5, -225, 0.5, -135),
+            Enum.EasingDirection.Out,
+            Enum.EasingStyle.Quad,
+            0.5,
+            true
+        )
+    end)
+
+    -- Kapatma
+    closeButton.MouseButton1Click:Connect(function()
+        mainFrame:TweenPosition(
+            UDim2.new(0.5, -225, -1, 0),
+            Enum.EasingDirection.In,
+            Enum.EasingStyle.Quad,
+            0.5,
+            true,
+            function()
+                screenGui:Destroy()
+            end
+        )
+    end)
+
+    -- Robux butonuna tıklama
+    buyButton.MouseButton1Click:Connect(function()
+        buyButton.BackgroundColor3 = Color3.fromRGB(45, 68, 152)
+        buyButton.Active = false
+        buyButton.AutoButtonColor = false
+        
+        -- 2 saniye bekleme efekti
+        wait(2)
+        
+        -- Bakiyeyi güncelle
+        currentBalance = newBalance
+        
+        -- Donated değerini güncelle
+        updateDonatedValue(parsedRobux)
+        
+        -- 1. GUI kaybolsun
+        mainFrame:TweenPosition(
+            UDim2.new(0.5, -225, -1, 0),
+            Enum.EasingDirection.In,
+            Enum.EasingStyle.Quad,
+            0.5,
+            true,
+            function()
+                mainFrame.Visible = false
+                
+                -- Success GUI (2. GUI)
+                local successFrame = Instance.new("Frame")
+                local scaleFactor = 0.8
+                successFrame.Size = UDim2.new(mainFrame.Size.X.Scale * scaleFactor, mainFrame.Size.X.Offset * scaleFactor, mainFrame.Size.Y.Scale * scaleFactor, mainFrame.Size.Y.Offset * scaleFactor)
+                successFrame.Position = UDim2.new(0.5, -successFrame.Size.X.Offset/2, 0.5, -successFrame.Size.Y.Offset/2)
+                successFrame.BackgroundColor3 = Color3.fromRGB(39, 41, 48)
+                successFrame.BorderSizePixel = 0
+                successFrame.Parent = screenGui
+                Instance.new("UICorner", successFrame).CornerRadius = UDim.new(0, 12)
+
+                -- Başlık
+                local successTitle = Instance.new("TextLabel")
+                successTitle.Size = UDim2.new(1, -20, 0, 42)
+                successTitle.Position = UDim2.new(0, 10, 0, 0)
+                successTitle.BackgroundTransparency = 1
+                successTitle.Text = "Buy Item"
+                successTitle.TextColor3 = Color3.new(1, 1, 1)
+                successTitle.Font = Enum.Font.GothamBold
+                successTitle.TextSize = 23
+                successTitle.TextXAlignment = Enum.TextXAlignment.Center
+                successTitle.Parent = successFrame
+
+                -- Başlık altı çizgi
+                local successLine = Instance.new("Frame")
+                successLine.Size = UDim2.new(1, -20, 0, 1)
+                successLine.Position = UDim2.new(0, 10, 0, 44)
+                successLine.BackgroundColor3 = Color3.fromRGB(60, 60, 70)
+                successLine.BorderSizePixel = 0
+                successLine.Parent = successFrame
+
+                -- Alt yazı
+                local successLabel = Instance.new("TextLabel")
+                successLabel.Size = UDim2.new(1, -40, 0, 50)
+                successLabel.Position = UDim2.new(0, 20, 0.5, -25)
+                successLabel.BackgroundTransparency = 1
+                successLabel.Text = "Your purchase of " .. productName .. " succeeded!"
+                successLabel.TextColor3 = Color3.fromRGB(200, 200, 200)
+                successLabel.Font = Enum.Font.GothamSemibold
+                successLabel.TextSize = 18
+                successLabel.TextWrapped = true
+                successLabel.TextXAlignment = Enum.TextXAlignment.Center
+                successLabel.TextYAlignment = Enum.TextYAlignment.Center
+                successLabel.Parent = successFrame
+
+                -- OK butonu
+                local okButton = Instance.new("TextButton")
+                okButton.Size = UDim2.new(0.88, 0, 0, 45)
+                okButton.Position = UDim2.new(0.06, 0, 1, -70)
+                okButton.BackgroundColor3 = Color3.fromRGB(255, 255, 255)
+                okButton.Text = "OK"
+                okButton.TextColor3 = Color3.fromRGB(0, 0, 0)
+                okButton.Font = Enum.Font.GothamBold
+                okButton.TextSize = 20
+                okButton.Parent = successFrame
+                Instance.new("UICorner", okButton).CornerRadius = UDim.new(0, 8)
+
+                okButton.MouseButton1Click:Connect(function()
+                    successFrame:TweenPosition(
+                        UDim2.new(0.5, -successFrame.Size.X.Offset/2, -1, 0),
+                        Enum.EasingDirection.In,
+                        Enum.EasingStyle.Quad,
+                        0.5,
+                        true,
+                        function()
+                            successFrame:Destroy()
+                            
+                            -- 3. GUI: yeşil bildirim
+                            spawn(function()
+                                wait(0.5)
+                                
+                                -- Yazı içeriği - VİRGÜLLÜ GÖSTERİM
+                                local notificationText = "you donated " .. formatNumber(parsedRobux) .. " to @" .. username -- VİRGÜLLÜ GÖSTERİM
+                                
+                                -- Yazı genişliğini hesapla
+                                local textService = game:GetService("TextService")
+                                local textSize = textService:GetTextSize(notificationText, 20, Enum.Font.GothamBlack, Vector2.new(10000, 50))
+                                
+                                -- Genişliği yazı uzunluğuna + padding'lere göre ayarla
+                                local padding = 120
+                                local minWidth = 400
+                                local calculatedWidth = math.max(textSize.X + padding, minWidth)
+                                
+                                local notifFrame = Instance.new("Frame")
+                                notifFrame.Size = UDim2.new(0, calculatedWidth, 0, 50)
+                                notifFrame.Position = UDim2.new(0.5, -calculatedWidth/2, 0.88, 0)
+                                notifFrame.BackgroundColor3 = Color3.fromRGB(23, 255, 77)
+                                notifFrame.BorderSizePixel = 0
+                                notifFrame.Parent = screenGui
+                                Instance.new("UICorner", notifFrame).CornerRadius = UDim.new(0, notifFrame.Size.Y.Offset/2)
+
+                                -- İçerik container
+                                local content = Instance.new("Frame")
+                                content.Size = UDim2.new(1, -20, 1, -10)
+                                content.Position = UDim2.new(0, 10, 0, 5)
+                                content.BackgroundTransparency = 1
+                                content.Parent = notifFrame
+
+                                -- Yazıyı parçalara ayır (split fonksiyonunu kullanarak)
+                                local textParts = splitString(notificationText, formatNumber(parsedRobux))
+                                local textBeforeAmount = textParts[1] -- "you donated "
+                                local textAfterAmount = textParts[2] -- " to @username"
+
+                                -- Sol Robux ikonu (başta)
+                                local leftIcon = Instance.new("ImageLabel")
+                                leftIcon.Size = UDim2.new(0, 24, 0, 24)
+                                leftIcon.BackgroundTransparency = 1
+                                leftIcon.Image = "rbxasset://textures/ui/common/robux@3x.png"
+                                leftIcon.ImageColor3 = Color3.fromRGB(19, 90, 30)
+                                leftIcon.Parent = content
+
+                                -- "you donated" yazısı
+                                local beforeLabel = Instance.new("TextLabel")
+                                beforeLabel.Size = UDim2.new(0, 0, 1, 0)
+                                beforeLabel.BackgroundTransparency = 1
+                                beforeLabel.Text = textBeforeAmount
+                                beforeLabel.TextColor3 = Color3.fromRGB(19, 90, 30)
+                                beforeLabel.Font = Enum.Font.GothamBlack
+                                beforeLabel.TextSize = 20
+                                beforeLabel.TextXAlignment = Enum.TextXAlignment.Left
+                                beforeLabel.TextYAlignment = Enum.TextYAlignment.Center
+                                beforeLabel.Parent = content
+
+                                -- Sağ Robux ikonu (miktarın yanında)
+                                local rightIcon = Instance.new("ImageLabel")
+                                rightIcon.Size = UDim2.new(0, 24, 0, 24)
+                                rightIcon.BackgroundTransparency = 1
+                                rightIcon.Image = "rbxasset://textures/ui/common/robux@3x.png"
+                                rightIcon.ImageColor3 = Color3.fromRGB(19, 90, 30)
+                                rightIcon.Parent = content
+
+                                -- Miktar yazısı - VİRGÜLLÜ GÖSTERİM
+                                local numberLabel = Instance.new("TextLabel")
+                                numberLabel.Size = UDim2.new(0, 0, 1, 0)
+                                numberLabel.BackgroundTransparency = 1
+                                numberLabel.Text = formatNumber(parsedRobux) -- VİRGÜLLÜ GÖSTERİM
+                                numberLabel.TextColor3 = Color3.fromRGB(19, 90, 30)
+                                numberLabel.Font = Enum.Font.GothamBlack
+                                numberLabel.TextSize = 20
+                                numberLabel.TextXAlignment = Enum.TextXAlignment.Left
+                                numberLabel.TextYAlignment = Enum.TextYAlignment.Center
+                                numberLabel.Parent = content
+
+                                -- "to @username" yazısı
+                                local afterLabel = Instance.new("TextLabel")
+                                afterLabel.Size = UDim2.new(0, 0, 1, 0)
+                                afterLabel.BackgroundTransparency = 1
+                                afterLabel.Text = textAfterAmount
+                                afterLabel.TextColor3 = Color3.fromRGB(19, 90, 30)
+                                afterLabel.Font = Enum.Font.GothamBlack
+                                afterLabel.TextSize = 20
+                                afterLabel.TextXAlignment = Enum.TextXAlignment.Left
+                                afterLabel.TextYAlignment = Enum.TextYAlignment.Center
+                                afterLabel.Parent = content
+
+                                -- Boyutları hesapla
+                                local leftIconWidth = 24
+                                local beforeWidth = textService:GetTextSize(textBeforeAmount, 20, Enum.Font.GothamBlack, Vector2.new(1000, 50)).X
+                                local rightIconWidth = 24
+                                local numberWidth = textService:GetTextSize(formatNumber(parsedRobux), 20, Enum.Font.GothamBlack, Vector2.new(1000, 50)).X
+                                local afterWidth = textService:GetTextSize(textAfterAmount, 20, Enum.Font.GothamBlack, Vector2.new(1000, 50)).X
+                                local spacing = 5
+
+                                -- Konumlandırmayı yap
+                                local currentX = 0
+                                
+                                leftIcon.Position = UDim2.new(0, currentX, 0.5, -12)
+                                currentX = currentX + leftIconWidth + spacing
+                                
+                                beforeLabel.Position = UDim2.new(0, currentX, 0, 0)
+                                beforeLabel.Size = UDim2.new(0, beforeWidth, 1, 0)
+                                currentX = currentX + beforeWidth + spacing
+                                
+                                rightIcon.Position = UDim2.new(0, currentX, 0.5, -12)
+                                currentX = currentX + rightIconWidth + spacing
+                                
+                                numberLabel.Position = UDim2.new(0, currentX, 0, 0)
+                                numberLabel.Size = UDim2.new(0, numberWidth, 1, 0)
+                                currentX = currentX + numberWidth + spacing
+                                
+                                afterLabel.Position = UDim2.new(0, currentX, 0, 0)
+                                afterLabel.Size = UDim2.new(0, afterWidth, 1, 0)
+
+                                -- Tüm içeriği ortala
+                                local totalWidth = leftIconWidth + beforeWidth + rightIconWidth + numberWidth + afterWidth + spacing * 4
+                                content.Position = UDim2.new(0.5, -totalWidth/2, 0, 5)
+
+                                notifFrame:TweenPosition(
+                                    UDim2.new(0.5, -calculatedWidth/2, 0.82, 0),
+                                    Enum.EasingDirection.Out,
+                                    Enum.EasingStyle.Quad,
+                                    0.5,
+                                    true
+                                )
+
+                                wait(3)
+                                notifFrame:TweenPosition(
+                                    UDim2.new(0.5, -calculatedWidth/2, 1, 0),
+                                    Enum.EasingDirection.In,
+                                    Enum.EasingStyle.Quad,
+                                    0.5,
+                                    true,
+                                    function()
+                                        notifFrame:Destroy()
+                                        screenGui:Destroy()
+                                    end
+                                )
+                            end)
+                        end
+                    )
+                end)
+            end
+        )
+    end)
 end
 
---// SETTINGS GUI
-local settingsGui = Instance.new("ScreenGui", playerGui)
-local settings = Instance.new("Frame", settingsGui)
-settings.Size = UDim2.fromOffset(280, 220)
-settings.Position = UDim2.fromOffset(20, 200)
-settings.BackgroundColor3 = Color3.fromRGB(45,45,55)
-settings.Visible = false
-Instance.new("UICorner", settings).CornerRadius = UDim.new(0, 10)
-
-local title = Instance.new("TextLabel", settings)
-title.Size = UDim2.new(1,0,0,40)
-title.Text = "Settings"
-title.Font = Enum.Font.GothamBold
-title.TextSize = 22
-title.TextColor3 = Color3.new(1,1,1)
-title.BackgroundTransparency = 1
-
-local function addBox(y, text)
-	local box = Instance.new("TextBox", settings)
-	box.Position = UDim2.new(0.1,0,y,0)
-	box.Size = UDim2.new(0.8,0,0,32)
-	box.Text = text
-	box.Font = Enum.Font.Gotham
-	box.TextSize = 16
-	box.BackgroundColor3 = Color3.fromRGB(60,60,70)
-	box.TextColor3 = Color3.new(1,1,1)
-	Instance.new("UICorner", box).CornerRadius = UDim.new(0,6)
-	return box
+-- Event listener'ı ekleyelim
+local function setupEventListener()
+    -- Eventi yakalamak için metatable hook'u kullanacağız
+    local oldNamecall
+    oldNamecall = hookmetamethod(game, "__namecall", function(self, ...)
+        local method = getnamecallmethod()
+        local args = {...}
+        
+        -- Sadece FireServer çağrılarını kontrol edelim
+        if method == "FireServer" then
+            -- Path'i kontrol etmek için self'in yolunu alalım
+            local success, path = pcall(function()
+                return self:GetFullName()
+            end)
+            
+            if success and path then
+                -- Beklediğimiz pattern: BoothUI'dan sonra Items.Frame.ItemXXXXXXX.Prompt
+                if string.find(path, "BoothUI") and string.find(path, "Items%.Frame%.Item%d+%.Prompt") then
+                    -- Args kontrolü: 3 parametre olmalı ve 3. parametre number olmalı
+                    if #args >= 3 and type(args[3]) == "number" and args[3] > 0 then
+                        -- Eventi blokla
+                        warn("[BLOCKED] Event yakalandı: " .. path)
+                        warn("Miktar: " .. args[3])
+                        
+                        -- Satın alma GUI'sini göster
+                        robuxAmount = tostring(args[3])
+                        createPurchaseGUI()
+                        
+                        -- Eventi server'a gitmeden blokla
+                        return nil
+                    end
+                end
+                
+                -- Alternatif olarak tam yol kontrolü
+                if string.find(path, "Players%.LocalPlayer%.PlayerGui%.BoothUI%.Items%.Frame%.Item%d+%.Prompt") then
+                    -- Args kontrolü: 3 parametre olmalı ve 3. parametre number olmalı
+                    if #args >= 3 and type(args[3]) == "number" and args[3] > 0 then
+                        -- Eventi blokla
+                        warn("[BLOCKED] Tam yol event yakalandı: " .. path)
+                        warn("Miktar: " .. args[3])
+                        
+                        -- Satın alma GUI'sini göster
+                        robuxAmount = tostring(args[3])
+                        createPurchaseGUI()
+                        
+                        -- Eventi server'a gitmeden blokla
+                        return nil
+                    end
+                end
+            end
+        end
+        
+        -- Diğer tüm çağrıları normal şekilde devam ettir
+        return oldNamecall(self, ...)
+    end)
 end
 
-local productBox = addBox(0.25, productName)
-local robuxBox = addBox(0.45, tostring(robuxAmount))
+-- Ayarlar GUI'sini oluştur
+local settingsGui = Instance.new("ScreenGui")
+settingsGui.Name = "SettingsGUI"
+settingsGui.Parent = playerGui
+settingsGui.ZIndexBehavior = Enum.ZIndexBehavior.Sibling
 
-local apply = Instance.new("TextButton", settings)
-apply.Position = UDim2.new(0.2,0,0.75,0)
-apply.Size = UDim2.new(0.6,0,0,36)
-apply.Text = "Apply"
-apply.Font = Enum.Font.GothamBold
-apply.TextSize = 18
-apply.BackgroundColor3 = Color3.fromRGB(60,100,255)
-apply.TextColor3 = Color3.new(1,1,1)
-Instance.new("UICorner", apply).CornerRadius = UDim.new(0,8)
+local settingsFrame = Instance.new("Frame")
+settingsFrame.Name = "SettingsFrame"
+settingsFrame.Size = UDim2.new(0, 300, 0, 250)
+settingsFrame.Position = UDim2.new(0, 10, 0.5, -125) -- Sol üst köşede sabit
+settingsFrame.BackgroundColor3 = Color3.fromRGB(45, 45, 55)
+settingsFrame.BorderSizePixel = 0
+settingsFrame.Visible = false -- Başlangıçta gizli
+settingsFrame.Parent = settingsGui
+Instance.new("UICorner", settingsFrame).CornerRadius = UDim.new(0, 12)
 
-apply.MouseButton1Click:Connect(function()
-	productName = productBox.Text
-	robuxAmount = tonumber(robuxBox.Text) or robuxAmount
+-- Pencereyi taşıma özelliği
+local dragInput, dragStart, startPos
+settingsFrame.InputBegan:Connect(function(input)
+    if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
+        dragStart = input.Position
+        startPos = settingsFrame.Position
+        input.Changed:Connect(function()
+            if input.UserInputState == Enum.UserInputState.End then
+                dragStart = nil
+            end
+        end)
+    end
 end)
 
---// TOGGLES
-UserInputService.InputBegan:Connect(function(i,gp)
-	if gp then return end
-	if i.KeyCode == Enum.KeyCode.F4 then
-		settings.Visible = not settings.Visible
-	end
-	if i.KeyCode == Enum.KeyCode.F5 then
-		createPurchaseGUI()
-	end
+settingsFrame.InputChanged:Connect(function(input)
+    if input.UserInputType == Enum.UserInputType.MouseMovement or input.UserInputType == Enum.UserInputType.Touch then
+        dragInput = input
+    end
 end)
 
-warn("✔ Script loaded | F4 = Settings | F5 = Test Purchase")
+game:GetService("UserInputService").InputChanged:Connect(function(input)
+    if input == dragInput and dragStart then
+        local delta = input.Position - dragStart
+        settingsFrame.Position = UDim2.new(startPos.X.Scale, startPos.X.Offset + delta.X, startPos.Y.Scale, startPos.Y.Offset + delta.Y)
+    end
+end)
+
+local settingsTitle = Instance.new("TextLabel")
+settingsTitle.Size = UDim2.new(1, 0, 0, 40)
+settingsTitle.Position = UDim2.new(0, 0, 0, 10)
+settingsTitle.BackgroundTransparency = 1
+settingsTitle.Text = "Settings"
+settingsTitle.TextColor3 = Color3.new(1, 1, 1)
+settingsTitle.Font = Enum.Font.GothamBold
+settingsTitle.TextSize = 24
+settingsTitle.Parent = settingsFrame
+
+-- Ürün Adı Girişi
+local productInput = Instance.new("TextBox")
+productInput.Size = UDim2.new(0.8, 0, 0, 35)
+productInput.Position = UDim2.new(0.1, 0, 0.2, 0)
+productInput.BackgroundColor3 = Color3.fromRGB(60, 60, 70)
+productInput.Text = productName
+productInput.TextColor3 = Color3.new(1, 1, 1)
+productInput.Font = Enum.Font.Gotham
+productInput.TextSize = 16
+productInput.PlaceholderText = "Asset Name"
+productInput.Parent = settingsFrame
+Instance.new("UICorner", productInput).CornerRadius = UDim.new(0, 6)
+
+-- Rastgele Ürün Butonu
+local randomProductButton = Instance.new("TextButton")
+randomProductButton.Size = UDim2.new(0.3, 0, 0, 35)
+randomProductButton.Position = UDim2.new(0.7, 10, 0.2, 0)
+randomProductButton.BackgroundColor3 = Color3.fromRGB(80, 80, 90)
+randomProductButton.Text = "Random"
+randomProductButton.TextColor3 = Color3.new(1, 1, 1)
+randomProductButton.Font = Enum.Font.Gotham
+randomProductButton.TextSize = 14
+randomProductButton.Parent = settingsFrame
+Instance.new("UICorner", randomProductButton).CornerRadius = UDim.new(0, 6)
+
+randomProductButton.MouseButton1Click:Connect(function()
+    productName = getRandomProduct()
+    productInput.Text = productName
+end)
+
+-- Robux Miktarı Girişi
+local robuxInput = Instance.new("TextBox")
+robuxInput.Size = UDim2.new(0.8, 0, 0, 35)
+robuxInput.Position = UDim2.new(0.1, 0, 0.4, 0)
+robuxInput.BackgroundColor3 = Color3.fromRGB(60, 60, 70)
+robuxInput.Text = robuxAmount
+robuxInput.TextColor3 = Color3.new(1, 1, 1)
+robuxInput.Font = Enum.Font.Gotham
+robuxInput.TextSize = 16
+robuxInput.PlaceholderText = "Robux"
+robuxInput.Parent = settingsFrame
+Instance.new("UICorner", robuxInput).CornerRadius = UDim.new(0, 6)
+
+-- Kullanıcı Adı Girişı
+local userInput = Instance.new("TextBox")
+userInput.Name = "UserInput"
+userInput.Size = UDim2.new(0.8, 0, 0, 35)
+userInput.Position = UDim2.new(0.1, 0, 0.6, 0)
+userInput.BackgroundColor3 = Color3.fromRGB(60, 60, 70)
+userInput.Text = username
+userInput.TextColor3 = Color3.new(1, 1, 1)
+userInput.Font = Enum.Font.Gotham
+userInput.TextSize = 16
+userInput.PlaceholderText = "Username"
+userInput.Parent = settingsFrame
+Instance.new("UICorner", userInput).CornerRadius = UDim.new(0, 6)
+
+-- Uygula Butonu
+local applyButton = Instance.new("TextButton")
+applyButton.Size = UDim2.new(0.6, 0, 0, 40)
+applyButton.Position = UDim2.new(0.2, 0, 0.8, 0)
+applyButton.BackgroundColor3 = Color3.fromRGB(63, 105, 255)
+applyButton.Text = "Apply"
+applyButton.TextColor3 = Color3.new(1, 1, 1)
+applyButton.Font = Enum.Font.GothamBold
+applyButton.TextSize = 18
+applyButton.Parent = settingsFrame
+Instance.new("UICorner", applyButton).CornerRadius = UDim.new(0, 8)
+
+applyButton.MouseButton1Click:Connect(function()
+    productName = productInput.Text
+    robuxAmount = robuxInput.Text
+    username = userInput.Text
+end)
+
+-- F4 tuşu ile ayarlar menüsünü açıp kapatma
+local userInputService = game:GetService("UserInputService")
+userInputService.InputBegan:Connect(function(input)
+    if input.KeyCode == Enum.KeyCode.F4 then
+        settingsFrame.Visible = not settingsFrame.Visible
+    end
+end)
+
+-- Event listener'ı başlat
+setupEventListener()
+
+-- Username otomatik güncelleme sistemini ba
+-- Username otomatik güncelleme sistemini başlat
+startUsernameAutoUpdate()
+
+-- Hata yakalama ve debug mesajları
+warn("Donation script başlatıldı!")
+warn("Varsayılan ayarlar:")
+warn("- Ürün Adı: " .. productName)
+warn("- Robux Miktarı: " .. robuxAmount)
+warn("- Kullanıcı Adı: " .. username)
+warn("- Başlangıç Bakiyesi: " .. formatNumber(currentBalance))
+
+-- Oyun başladığında kontrol et
+game:GetService("Players").LocalPlayer:WaitForChild("PlayerGui")
+
+-- BoothUI'nin yüklenmesini bekle
+spawn(function()
+    while true do
+        wait(5)
+        local boothUI = playerGui:FindFirstChild("BoothUI")
+        if boothUI then
+            warn("BoothUI bulundu! Script aktif.")
+            break
+        else
+            warn("BoothUI bekleniyor...")
+        end
+    end
+end)
+
+-- Oyun kapatıldığında clean-up
+game:GetService("Players").PlayerRemoving:Connect(function(leavingPlayer)
+    if leavingPlayer == player then
+        -- Gerekli temizlik işlemleri buraya eklenebilir
+        warn("Donation script kapatılıyor...")
+    end
+end)
+
+-- Hata ayıklama için konsol komutları
+local function handleChatMessage(message)
+    if message == "/debug" then
+        warn("=== DEBUG BİLGİLERİ ===")
+        warn("Ürün Adı: " .. productName)
+        warn("Robux Miktarı: " .. robuxAmount)
+        warn("Kullanıcı Adı: " .. username)
+        warn("Mevcut Bakiye: " .. formatNumber(currentBalance))
+        
+        -- BoothUI kontrolü
+        local boothUI = playerGui:FindFirstChild("BoothUI")
+        if boothUI then
+            warn("BoothUI: MEVCUT")
+            local itemsFrame = boothUI:FindFirstChild("Items")
+            if itemsFrame then
+                itemsFrame = itemsFrame:FindFirstChild("Frame")
+                if itemsFrame then
+                    local itemCount = 0
+                    for _, child in ipairs(itemsFrame:GetChildren()) do
+                        if string.match(child.Name, "Item%d+") then
+                            itemCount = itemCount + 1
+                        end
+                    end
+                    warn("Item sayısı: " .. itemCount)
+                end
+            end
+        else
+            warn("BoothUI: BULUNAMADI")
+        end
+    elseif message == "/reload" then
+        warn("Script yeniden başlatılıyor...")
+        -- Gerekirse script'i yeniden başlat
+    end
+end
+
+-- Chat listener (opsiyonel)
+game:GetService("Players").LocalPlayer.Chatted:Connect(handleChatMessage)
+
+-- Performans optimizasyonu
+game:GetService("RunService").Heartbeat:Connect(function()
+    -- Gerekirse performans ayarları buraya eklenebilir
+end)
+
+warn("Donation script başarıyla yüklendi! F4 tuşu ile ayarları açabilirsiniz.")
