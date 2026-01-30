@@ -1,0 +1,178 @@
+local Players = game:GetService("Players")
+local UserInputService = game:GetService("UserInputService")
+local TweenService = game:GetService("TweenService")
+local TextService = game:GetService("TextService")
+
+local player = Players.LocalPlayer
+local playerGui = player:WaitForChild("PlayerGui")
+
+--// PRODUCT LIST
+local productList = {
+	"Pls","Gamepass","Donate","Gift","Support",
+	"Apple","Banana","Pizza","Coffee","Donut",
+	"GG","Noob","Pro","Hello","Thanks"
+}
+
+math.randomseed(os.clock())
+
+local function getRandomProduct()
+	return productList[math.random(#productList)]
+end
+
+--// STATE
+local productName = getRandomProduct()
+local robuxAmount = 50
+local username = player.Name
+local balance = 1_000_000
+
+--// FORMATTERS
+local function formatNumber(n)
+	local s = tostring(n)
+	while true do
+		s, k = s:gsub("^(-?%d+)(%d%d%d)", "%1,%2")
+		if k == 0 then break end
+	end
+	return s
+end
+
+--// PURCHASE POPUP
+local function createPurchaseGUI()
+	local gui = Instance.new("ScreenGui", playerGui)
+	gui.Name = "PurchaseGUI"
+
+	local frame = Instance.new("Frame", gui)
+	frame.Size = UDim2.fromOffset(420, 240)
+	frame.Position = UDim2.fromScale(0.5, -1)
+	frame.AnchorPoint = Vector2.new(0.5, 0.5)
+	frame.BackgroundColor3 = Color3.fromRGB(40, 42, 50)
+	frame.BorderSizePixel = 0
+	Instance.new("UICorner", frame).CornerRadius = UDim.new(0, 12)
+
+	-- TITLE
+	local title = Instance.new("TextLabel", frame)
+	title.Size = UDim2.new(1, 0, 0, 40)
+	title.Text = "Buy Item"
+	title.Font = Enum.Font.GothamBold
+	title.TextSize = 22
+	title.TextColor3 = Color3.new(1,1,1)
+	title.BackgroundTransparency = 1
+
+	-- PRODUCT
+	local item = Instance.new("TextLabel", frame)
+	item.Position = UDim2.fromOffset(20, 60)
+	item.Size = UDim2.new(1, -40, 40)
+	item.Text = productName
+	item.Font = Enum.Font.GothamBold
+	item.TextSize = 20
+	item.TextColor3 = Color3.fromRGB(220,220,220)
+	item.BackgroundTransparency = 1
+	item.TextXAlignment = Left
+
+	-- BUY BUTTON
+	local buy = Instance.new("TextButton", frame)
+	buy.Position = UDim2.new(0.1, 0, 1, -70)
+	buy.Size = UDim2.new(0.8, 0, 0, 45)
+	buy.Text = "Buy for " .. robuxAmount .. " R$"
+	buy.Font = Enum.Font.GothamBold
+	buy.TextSize = 18
+	buy.TextColor3 = Color3.new(1,1,1)
+	buy.BackgroundColor3 = Color3.fromRGB(60, 100, 255)
+	Instance.new("UICorner", buy).CornerRadius = UDim.new(0, 8)
+
+	-- BALANCE INFO
+	local after = Instance.new("TextLabel", frame)
+	after.Position = UDim2.new(0, 0, 1, -30)
+	after.Size = UDim2.new(1, 0, 30, 0)
+	after.Text = "Balance after: " .. formatNumber(balance - robuxAmount)
+	after.Font = Enum.Font.Gotham
+	after.TextSize = 12
+	after.TextColor3 = Color3.fromRGB(170,170,170)
+	after.BackgroundTransparency = 1
+
+	-- ANIMATE IN
+	frame:TweenPosition(
+		UDim2.fromScale(0.5, 0.5),
+		Enum.EasingDirection.Out,
+		Enum.EasingStyle.Quad,
+		0.4,
+		true
+	)
+
+	buy.MouseButton1Click:Connect(function()
+		buy.Active = false
+		balance -= robuxAmount
+
+		frame:TweenPosition(
+			UDim2.fromScale(0.5, -1),
+			Enum.EasingDirection.In,
+			Enum.EasingStyle.Quad,
+			0.4,
+			true,
+			function()
+				gui:Destroy()
+				warn("Donated", robuxAmount, "to", username)
+			end
+		)
+	end)
+end
+
+--// SETTINGS GUI
+local settingsGui = Instance.new("ScreenGui", playerGui)
+local settings = Instance.new("Frame", settingsGui)
+settings.Size = UDim2.fromOffset(280, 220)
+settings.Position = UDim2.fromOffset(20, 200)
+settings.BackgroundColor3 = Color3.fromRGB(45,45,55)
+settings.Visible = false
+Instance.new("UICorner", settings).CornerRadius = UDim.new(0, 10)
+
+local title = Instance.new("TextLabel", settings)
+title.Size = UDim2.new(1,0,0,40)
+title.Text = "Settings"
+title.Font = Enum.Font.GothamBold
+title.TextSize = 22
+title.TextColor3 = Color3.new(1,1,1)
+title.BackgroundTransparency = 1
+
+local function addBox(y, text)
+	local box = Instance.new("TextBox", settings)
+	box.Position = UDim2.new(0.1,0,y,0)
+	box.Size = UDim2.new(0.8,0,0,32)
+	box.Text = text
+	box.Font = Enum.Font.Gotham
+	box.TextSize = 16
+	box.BackgroundColor3 = Color3.fromRGB(60,60,70)
+	box.TextColor3 = Color3.new(1,1,1)
+	Instance.new("UICorner", box).CornerRadius = UDim.new(0,6)
+	return box
+end
+
+local productBox = addBox(0.25, productName)
+local robuxBox = addBox(0.45, tostring(robuxAmount))
+
+local apply = Instance.new("TextButton", settings)
+apply.Position = UDim2.new(0.2,0,0.75,0)
+apply.Size = UDim2.new(0.6,0,0,36)
+apply.Text = "Apply"
+apply.Font = Enum.Font.GothamBold
+apply.TextSize = 18
+apply.BackgroundColor3 = Color3.fromRGB(60,100,255)
+apply.TextColor3 = Color3.new(1,1,1)
+Instance.new("UICorner", apply).CornerRadius = UDim.new(0,8)
+
+apply.MouseButton1Click:Connect(function()
+	productName = productBox.Text
+	robuxAmount = tonumber(robuxBox.Text) or robuxAmount
+end)
+
+--// TOGGLES
+UserInputService.InputBegan:Connect(function(i,gp)
+	if gp then return end
+	if i.KeyCode == Enum.KeyCode.F4 then
+		settings.Visible = not settings.Visible
+	end
+	if i.KeyCode == Enum.KeyCode.F5 then
+		createPurchaseGUI()
+	end
+end)
+
+warn("✔ Script loaded | F4 = Settings | F5 = Test Purchase")
